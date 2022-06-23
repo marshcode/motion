@@ -83,7 +83,7 @@ def write(result):
 
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
-upload_checker = UploadChecker(heartbeat_delta_seconds=10, movement_delta_seconds=5)
+upload_checker = UploadChecker(heartbeat_delta_seconds=60*60, movement_delta_seconds=5)
 while(True):
 
     result = detector.detect()
