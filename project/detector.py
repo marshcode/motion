@@ -19,8 +19,8 @@ class Detector(object):
             return {}
 
         cv2.accumulateWeighted(gray, self.average, 0.5)
-        deltaframe = cv2.absdiff(gray, cv2.convertScaleAbs(self.average))
-
+        average_abs = cv2.convertScaleAbs(self.average)
+        deltaframe = cv2.absdiff(gray, average_abs)
 
         threshold = cv2.threshold(deltaframe, 25, 255, cv2.THRESH_BINARY)[1]
         threshold = cv2.dilate(threshold,None)
@@ -38,6 +38,7 @@ class Detector(object):
         result['has_motion'] = has_motion
         result['threshold'] = threshold
         result['deltaframe'] = deltaframe
+        result['average_abs'] = average_abs
         result['frame'] = frame
         return result
 
@@ -48,9 +49,7 @@ while(True):
 
     result = detector.detect()
 
-    average = result.get('average')
-
-    for key in ['threshold', 'deltaframe', 'frame']:
+    for key in ['threshold', 'deltaframe', 'frame', 'average_abs']:
         img = result.get(key)
         if img is not None:
             cv2.imshow(key, img)
