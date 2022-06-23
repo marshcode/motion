@@ -26,13 +26,16 @@ class Detector(object):
         threshold = cv2.dilate(threshold,None)
 
         countour,heirarchy = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        has_motion = False
         for i in countour:
             if cv2.contourArea(i) < 50:
                 continue
 
+            has_motion  = True
             (x, y, w, h) = cv2.boundingRect(i)
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
+        result['has_motion'] = has_motion
         result['threshold'] = threshold
         result['deltaframe'] = deltaframe
         result['frame'] = frame
