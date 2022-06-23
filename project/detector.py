@@ -47,6 +47,8 @@ class Detector(object):
         cv2.putText(frame, text, (50,50), cv2.FONT_HERSHEY_SIMPLEX,
                            1, (255,0,0), 2, cv2.LINE_AA)
 
+        result['countour_count'] = countour_count
+        result['countour_total_area'] = countour_total_area
         result['has_motion'] = has_motion
         result['threshold'] = threshold
         result['deltaframe'] = deltaframe
@@ -71,29 +73,49 @@ class UploadChecker(object):
         now = datetime.datetime.now()
         if self.last_heartbeat_upload + self.heartbeat_delta  < now:
             self.last_heartbeat_upload = now
-            return True
+            return 'heartbeat'
 
         if self.last_movement_upload + self.movement_delta < now and result.get('has_motion'):
             self.last_movement_upload = now
-            return True
+            return 'movement'
 
         return False
 
+class MaxAccumulator(object):
+    def __init__(self, result_value):
+        self.result = None
+        self.result_value = result_value
 
-def write(result):
+    def accumulate(self, result):
+        if not self.result:
+            self.result = result
+            return None
+
+        current_value = self.result.get(self.result_value)
+        test_value = result.get(self.result_value)
+
+        if current_value < test_value:
+            self.result = result
+        elif current_value > test_value:
+            ret = self.result
+            self.result = None
+            return ret
+
+def write(result, suffix):
     dt = datetime.datetime.now()
     folder = dt.strftime('G:\\My Drive\\archive\%Y%m%d')
-    suffix = 'motion' if result.get('has_motion') else 'heartbeat'
     file = dt.strftime('%H%M%S_{}.png'.format(suffix))
     os.makedirs(os.path.join(folder), exist_ok=True)
     filename = os.path.join( folder, file)
 
     result = cv2.imwrite(filename, result.get('frame'))
-    print("Writing to {} = {}".format(filename, result))
+    #print("Writing to {} = {}".format(filename, result))
 
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
 upload_checker = UploadChecker(heartbeat_delta_seconds=60*60, movement_delta_seconds=5)
+accumulator = MaxAccumulator('countour_count')
+
 while(True):
 
     result = detector.detect()
@@ -103,9 +125,11 @@ while(True):
         if img is not None:
             cv2.imshow(key, img)
 
+    result = accumulator.accumulate(result)
+    result_type = upload_checker.check(result)
+    if result_type:
+        write(result, suffix=result_type)
 
-    if upload_checker.check(result):
-        write(result)
 
     if cv2.waitKey(20) == ord('q'):
       break
