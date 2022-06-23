@@ -29,13 +29,20 @@ class Detector(object):
 
         countour,heirarchy = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         has_motion = False
+
+        countour_count = 0
         for i in countour:
             if cv2.contourArea(i) < 50:
                 continue
 
+            countour_count += 1
             has_motion  = True
             (x, y, w, h) = cv2.boundingRect(i)
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+
+        text = "{}".format(countour_count)
+        cv2.putText(frame, text, (50,50), cv2.FONT_HERSHEY_SIMPLEX,
+                           1, (255,0,0), 2, cv2.LINE_AA)
 
         result['has_motion'] = has_motion
         result['threshold'] = threshold
