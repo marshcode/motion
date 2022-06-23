@@ -1,4 +1,6 @@
 import cv2
+import datetime
+import os
 
 
 class Detector(object):
@@ -43,8 +45,45 @@ class Detector(object):
         return result
 
 
+class UploadChecker(object):
+    def __init__(self, heartbeat_delta_seconds, movement_delta_seconds):
+        self.heartbeat_delta = datetime.timedelta(seconds=heartbeat_delta_seconds)
+        self.movement_delta = datetime.timedelta(seconds=movement_delta_seconds)
+
+        self.last_heartbeat_upload = datetime.datetime(2000, 1, 1)
+        self.last_movement_upload = datetime.datetime(2000, 1, 1)
+
+    def check(self, result):
+
+        if not result:
+            return False
+
+        now = datetime.datetime.now()
+        if self.last_heartbeat_upload + self.heartbeat_delta  < now:
+            self.last_heartbeat_upload = now
+            return True
+
+        if self.last_movement_upload + self.movement_delta < now and result.get('has_motion'):
+            self.last_movement_upload = now
+            return True
+
+        return False
+
+
+def write(result):
+    dt = datetime.datetime.now()
+    folder = dt.strftime('G:\\My Drive\\archive\%Y%m%d')
+    suffix = 'motion' if result.get('has_motion') else 'heartbeat'
+    file = dt.strftime('%H%M%S_{}.png'.format(suffix))
+    os.makedirs(os.path.join(folder), exist_ok=True)
+    filename = os.path.join( folder, file)
+
+    result = cv2.imwrite(filename, result.get('frame'))
+    print("Writing to {} = {}".format(filename, result))
+
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
+upload_checker = UploadChecker(heartbeat_delta_seconds=10, movement_delta_seconds=5)
 while(True):
 
     result = detector.detect()
@@ -54,6 +93,9 @@ while(True):
         if img is not None:
             cv2.imshow(key, img)
 
+
+    if upload_checker.check(result):
+        write(result)
 
     if cv2.waitKey(20) == ord('q'):
       break
