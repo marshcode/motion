@@ -31,16 +31,19 @@ class Detector(object):
         has_motion = False
 
         countour_count = 0
+        countour_total_area = 0
         for i in countour:
             if cv2.contourArea(i) < 50:
                 continue
 
-            countour_count += 1
             has_motion  = True
             (x, y, w, h) = cv2.boundingRect(i)
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
-        text = "{}".format(countour_count)
+            countour_count += 1
+            countour_total_area += w*h
+
+        text = "{} | {}".format(countour_count, countour_total_area)
         cv2.putText(frame, text, (50,50), cv2.FONT_HERSHEY_SIMPLEX,
                            1, (255,0,0), 2, cv2.LINE_AA)
 
