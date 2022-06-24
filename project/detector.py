@@ -1,7 +1,7 @@
 import cv2
 import datetime
 import os
-
+import imageio
 
 class Detector(object):
     def __init__(self, video):
@@ -81,9 +81,50 @@ class Heartbeat(object):
             print(f"Writing heartbeat to {path}")
             cv2.imwrite(path, frame)
 
+class MovementSignal(object):
+
+    def __init__(self, rolling_count):
+        self.rolling_count = rolling_count
+        self.signal_up = False
+        self.value_window = []
+
+    def update_signal(self, value):
+
+        self.value_window.append(value)
+        self.value_window = self.value_window[-self.rolling_count:]
+        rolling_average = sum(self.value_window) / len(self.value_window)
+        self.signal_up = rolling_average > 0
+
+    def get_signal(self):
+        return self.signal_up
+
+class FrameBuffer(object):
+    def __init__(self, frame_save_delta_seconds):
+        self.frame_save_delta = datetime.timedelta(seconds = frame_save_delta_seconds)
+        self.last_save = datetime.datetime(1970, 1, 1)
+        self.buffer = []
+
+    def save(self, frame):
+        now = datetime.datetime.now()
+        if self.last_save + self.frame_save_delta < now and frame is not None:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            self.buffer.append(frame)
+
+    def write(self):
+        if len(self.buffer) == 0:
+            return
+
+        path = get_upload_path('motion', 'gif')
+        print(f"Writing motion to {path}")
+        imageio.mimsave(path, self.buffer, duration = 0.1)
+        self.buffer = []
+        self.last_save = datetime.datetime(1970, 1, 1)
+
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
-heartbeat = Heartbeat(5)
+heartbeat = Heartbeat(60* 60)
+movement_signal = MovementSignal(10)
+frame_buffer = FrameBuffer(2)
 
 while(True):
 
@@ -95,6 +136,12 @@ while(True):
             cv2.imshow(key, img)
 
     heartbeat.check_upload(result.get('frame'))
+    movement_signal.update_signal(result.get('countour_count', 0))
+
+    if movement_signal.get_signal():
+        frame_buffer.save(result.get('frame'))
+    else:
+        frame_buffer.write()
 
     if cv2.waitKey(20) == ord('q'):
       break
