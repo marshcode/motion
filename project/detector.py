@@ -126,6 +126,7 @@ class FrameBuffer(object):
         frame_factor = int(math.ceil(buff_len / float(target_frames)))
         if frame_factor > 1:
             buffer = buffer[::frame_factor]
+            buff_len = len(buffer)
 
         for idx, frame in enumerate(buffer):
             write_on_frame(frame, "{}/{}".format(idx+1, buff_len), (50, 100))
@@ -143,7 +144,7 @@ class FrameBuffer(object):
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
 heartbeat = Heartbeat(60* 60)
-movement_signal = MovementSignal(75)
+movement_signal = MovementSignal(45)
 frame_buffer = FrameBuffer(2)
 
 while(True):
