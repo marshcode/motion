@@ -112,15 +112,18 @@ class FrameBuffer(object):
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             self.buffer.append(frame)
 
-    def write(self):
+    def write(self, optimize=False):
         if len(self.buffer) == 0:
             return
 
-        path = get_upload_path('motion', 'gif')
+        output_path = get_upload_path('motion', 'gif')
+        write_path = 'temp.gif' if optimize else output_path
+
         print("Saving Motion ...")
-        imageio.mimsave("temp.gif", self.buffer, duration = 0.1)
-        optimize("temp.gif",  path)
-        print(f"Writing motion to {path}")
+        imageio.mimsave(write_path, self.buffer, duration = 0.1)
+        if optimize:
+            optimize(write_path,  output_path)
+        print(f"Writing motion to {output_path}")
         self.buffer = []
         self.last_save = datetime.datetime(1970, 1, 1)
 
