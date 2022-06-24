@@ -46,8 +46,7 @@ class Detector(object):
             countour_total_area += w*h
 
         text = "{} | {}".format(countour_count, countour_total_area)
-        cv2.putText(frame, text, (50,50), cv2.FONT_HERSHEY_SIMPLEX,
-                           1, (255,0,0), 2, cv2.LINE_AA)
+        write_on_frame(frame, text, (50, 50))
 
         result['countour_count'] = countour_count
         result['countour_total_area'] = countour_total_area
@@ -57,6 +56,10 @@ class Detector(object):
         result['average_abs'] = average_abs
         result['frame'] = frame
         return result
+
+def write_on_frame(frame, text, pos):
+        cv2.putText(frame, text, pos, cv2.FONT_HERSHEY_SIMPLEX,
+                           1, (255,0,0), 2, cv2.LINE_AA)
 
 def get_upload_path(suffix, file_extention):
     dt = datetime.datetime.now()
@@ -117,25 +120,30 @@ class FrameBuffer(object):
             return
 
         buffer = self.buffer
-        frame_factor = int(math.ceil(len(self.buffer) / float(target_frames)))
+        buff_len = len(buffer)
+        self.buffer = []
+
+        frame_factor = int(math.ceil(buff_len / float(target_frames)))
         if frame_factor > 1:
             buffer = buffer[::frame_factor]
+
+        for idx, frame in enumerate(buffer):
+            write_on_frame(frame, "{}/{}".format(idx+1, buff_len), (50, 100))
 
         output_path = get_upload_path('motion', 'gif')
         write_path = 'temp.gif' if optimize else output_path
 
-        print(f"Saving {len(buffer)} Frames ...")
+        print(f"Saving {buff_len} Frames ...")
         imageio.mimsave(write_path, buffer, duration = 0.1)
         if optimize:
             optimize(write_path,  output_path)
         print(f"Writing motion to {output_path}")
-        self.buffer = []
         self.last_save = datetime.datetime(1970, 1, 1)
 
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
 heartbeat = Heartbeat(60* 60)
-movement_signal = MovementSignal(100)
+movement_signal = MovementSignal(75)
 frame_buffer = FrameBuffer(2)
 
 while(True):
