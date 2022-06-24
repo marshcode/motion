@@ -3,7 +3,7 @@ import datetime
 import os
 import imageio
 from pygifsicle import optimize
-
+import math
 
 class Detector(object):
     def __init__(self, video):
@@ -112,15 +112,20 @@ class FrameBuffer(object):
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             self.buffer.append(frame)
 
-    def write(self, optimize=False):
+    def write(self, optimize=False, target_frames=150):
         if len(self.buffer) == 0:
             return
+
+        buffer = self.buffer
+        frame_factor = int(math.ceil(len(self.buffer) / float(target_frames)))
+        if frame_factor > 1:
+            buffer = buffer[::frame_factor]
 
         output_path = get_upload_path('motion', 'gif')
         write_path = 'temp.gif' if optimize else output_path
 
-        print("Saving Motion ...")
-        imageio.mimsave(write_path, self.buffer, duration = 0.1)
+        print(f"Saving {len(buffer)} Frames ...")
+        imageio.mimsave(write_path, buffer, duration = 0.1)
         if optimize:
             optimize(write_path,  output_path)
         print(f"Writing motion to {output_path}")
