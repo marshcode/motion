@@ -85,6 +85,7 @@ class MaxAccumulator(object):
     def __init__(self, result_value):
         self.result = None
         self.result_value = result_value
+        self.zero_run = 0
 
     def accumulate(self, result):
         if not self.result:
@@ -94,12 +95,15 @@ class MaxAccumulator(object):
         current_value = self.result.get(self.result_value)
         test_value = result.get(self.result_value)
 
-        if current_value < test_value:
+        if test_value == 0:
+            self.zero_run += 1
+            if self.zero_run > 5 and self.result is not None:
+                ret = self.result
+                self.result = None
+                self.zero_run = 0
+                return ret
+        elif current_value < test_value:
             self.result = result
-        elif current_value > test_value:
-            ret = self.result
-            self.result = None
-            return ret
 
 def write(result, suffix):
     dt = datetime.datetime.now()
@@ -109,7 +113,7 @@ def write(result, suffix):
     filename = os.path.join( folder, file)
 
     result = cv2.imwrite(filename, result.get('frame'))
-    #print("Writing to {} = {}".format(filename, result))
+    print("Writing to {} = {}".format(filename, result))
 
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
