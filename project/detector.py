@@ -56,69 +56,34 @@ class Detector(object):
         result['frame'] = frame
         return result
 
-
-class UploadChecker(object):
-    def __init__(self, heartbeat_delta_seconds, movement_delta_seconds):
-        self.heartbeat_delta = datetime.timedelta(seconds=heartbeat_delta_seconds)
-        self.movement_delta = datetime.timedelta(seconds=movement_delta_seconds)
-
-        self.last_heartbeat_upload = datetime.datetime(2000, 1, 1)
-        self.last_movement_upload = datetime.datetime(2000, 1, 1)
-
-    def check(self, result):
-
-        if not result:
-            return False
-
-        now = datetime.datetime.now()
-        if self.last_heartbeat_upload + self.heartbeat_delta  < now:
-            self.last_heartbeat_upload = now
-            return 'heartbeat'
-
-        if self.last_movement_upload + self.movement_delta < now and result.get('has_motion'):
-            self.last_movement_upload = now
-            return 'movement'
-
-        return False
-
-class MaxAccumulator(object):
-    def __init__(self, result_value):
-        self.result = None
-        self.result_value = result_value
-        self.zero_run = 0
-
-    def accumulate(self, result):
-        if not self.result:
-            self.result = result
-            return None
-
-        current_value = self.result.get(self.result_value)
-        test_value = result.get(self.result_value)
-
-        if test_value == 0:
-            self.zero_run += 1
-            if self.zero_run > 5 and self.result is not None:
-                ret = self.result
-                self.result = None
-                self.zero_run = 0
-                return ret
-        elif current_value < test_value:
-            self.result = result
-
-def write(result, suffix):
+def get_upload_path(suffix, file_extention):
     dt = datetime.datetime.now()
     folder = dt.strftime('G:\\My Drive\\archive\%Y%m%d')
-    file = dt.strftime('%H%M%S_{}.png'.format(suffix))
+    file = dt.strftime('%H%M%S_{}.{}'.format(suffix,file_extention))
     os.makedirs(os.path.join(folder), exist_ok=True)
     filename = os.path.join( folder, file)
+    return filename
 
-    result = cv2.imwrite(filename, result.get('frame'))
-    print("Writing to {} = {}".format(filename, result))
+class Heartbeat(object):
+    def __init__(self, heartbeat_delta_seconds):
+        self.heartbeat_delta = datetime.timedelta(seconds=heartbeat_delta_seconds)
+        self.last_heartbeat = datetime.datetime(1970,1,1)
+
+    def check_upload(self, frame):
+
+        if frame is None:
+            return
+
+        now = datetime.datetime.now()
+        if self.last_heartbeat + self.heartbeat_delta < now:
+            self.last_heartbeat = now
+            path = get_upload_path('heartbeat', 'png')
+            print(f"Writing heartbeat to {path}")
+            cv2.imwrite(path, frame)
 
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
-upload_checker = UploadChecker(heartbeat_delta_seconds=60*60, movement_delta_seconds=5)
-accumulator = MaxAccumulator('countour_count')
+heartbeat = Heartbeat(5)
 
 while(True):
 
@@ -129,11 +94,7 @@ while(True):
         if img is not None:
             cv2.imshow(key, img)
 
-    result = accumulator.accumulate(result)
-    result_type = upload_checker.check(result)
-    if result_type:
-        write(result, suffix=result_type)
-
+    heartbeat.check_upload(result.get('frame'))
 
     if cv2.waitKey(20) == ord('q'):
       break
