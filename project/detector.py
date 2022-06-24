@@ -2,6 +2,8 @@ import cv2
 import datetime
 import os
 import imageio
+from pygifsicle import optimize
+
 
 class Detector(object):
     def __init__(self, video):
@@ -115,15 +117,17 @@ class FrameBuffer(object):
             return
 
         path = get_upload_path('motion', 'gif')
+        print("Saving Motion ...")
+        imageio.mimsave("temp.gif", self.buffer, duration = 0.1)
+        optimize("temp.gif",  path)
         print(f"Writing motion to {path}")
-        imageio.mimsave(path, self.buffer, duration = 0.1)
         self.buffer = []
         self.last_save = datetime.datetime(1970, 1, 1)
 
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
 heartbeat = Heartbeat(60* 60)
-movement_signal = MovementSignal(10)
+movement_signal = MovementSignal(100)
 frame_buffer = FrameBuffer(2)
 
 while(True):
