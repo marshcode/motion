@@ -142,6 +142,23 @@ class FrameBuffer(object):
         print(f"Writing motion to {output_path}")
         self.last_save = datetime.datetime(1970, 1, 1)
 
+def combine_image(canvas, image, offset_h, offset_w, scale=100):
+    width = int(image.shape[1] * scale / 100)
+    height = int(image.shape[0] * scale / 100)
+    resized = cv2.resize(image, (width, height), interpolation = cv2.INTER_AREA)
+
+    if canvas is None:
+        canvas = np.zeros((height*2, width*2, 3), np.uint8)
+
+    w_start = width * offset_w
+    w_end = width * (offset_w+1)
+
+    h_start = height * offset_h
+    h_end = height * (offset_h+1)
+
+    canvas[h_start:h_end, w_start:w_end, :3] = resized
+    return canvas
+
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
 heartbeat = Heartbeat(60* 60)
@@ -152,23 +169,13 @@ while(True):
 
     result = detector.detect()
 
-    scale_percent = 50 # percent of original size
-    combine = []
-    for key in ['threshold', 'deltaframe', 'frame', 'average_abs']:
-        img = result.get(key)
-        if img is not None:
-            width = int(img.shape[1] * scale_percent / 100)
-            height = int(img.shape[0] * scale_percent / 100)
-            resized = cv2.resize(img, (width, height), interpolation = cv2.INTER_AREA)
-            combine.append(resized)
-
     if result.get('frame') is not None:
-        vis = np.zeros((height*2, width*2, 3), np.uint8)
-        vis[:height, :width, :3] = combine[2]
-        vis[:height, width:width*2, :3] = cv2.cvtColor(combine[3], cv2.COLOR_GRAY2RGB)
-        vis[height:height*2, width:width*2, :3] = cv2.cvtColor(combine[0], cv2.COLOR_GRAY2RGB)
-        vis[height:height*2, :width, :3] = cv2.cvtColor(combine[1], cv2.COLOR_GRAY2RGB)
-        cv2.imshow('all', vis)
+        viz = None
+        viz = combine_image(viz, result.get('frame'), offset_w=0, offset_h=0, scale=50)
+        viz = combine_image(viz, cv2.cvtColor(result.get('average_abs'), cv2.COLOR_GRAY2RGB), offset_w=1, offset_h=0, scale=50)
+        viz = combine_image(viz, cv2.cvtColor(result.get('deltaframe'), cv2.COLOR_GRAY2RGB), offset_w=0, offset_h=1, scale=50)
+        viz = combine_image(viz, cv2.cvtColor(result.get('threshold'), cv2.COLOR_GRAY2RGB), offset_w=1, offset_h=1, scale=50)
+        cv2.imshow('all', viz)
 
     heartbeat.check_upload(result.get('frame'))
     movement_signal.update_signal(result.get('countour_count', 0))
