@@ -4,6 +4,7 @@ import os
 import imageio
 from pygifsicle import optimize
 import math
+import numpy as np
 
 class Detector(object):
     def __init__(self, video):
@@ -151,10 +152,23 @@ while(True):
 
     result = detector.detect()
 
+    scale_percent = 50 # percent of original size
+    combine = []
     for key in ['threshold', 'deltaframe', 'frame', 'average_abs']:
         img = result.get(key)
         if img is not None:
-            cv2.imshow(key, img)
+            width = int(img.shape[1] * scale_percent / 100)
+            height = int(img.shape[0] * scale_percent / 100)
+            resized = cv2.resize(img, (width, height), interpolation = cv2.INTER_AREA)
+            combine.append(resized)
+
+    if result.get('frame') is not None:
+        vis = np.zeros((height*2, width*2, 3), np.uint8)
+        vis[:height, :width, :3] = combine[2]
+        vis[:height, width:width*2, :3] = cv2.cvtColor(combine[3], cv2.COLOR_GRAY2RGB)
+        vis[height:height*2, width:width*2, :3] = cv2.cvtColor(combine[0], cv2.COLOR_GRAY2RGB)
+        vis[height:height*2, :width, :3] = cv2.cvtColor(combine[1], cv2.COLOR_GRAY2RGB)
+        cv2.imshow('all', vis)
 
     heartbeat.check_upload(result.get('frame'))
     movement_signal.update_signal(result.get('countour_count', 0))
@@ -162,7 +176,7 @@ while(True):
     if movement_signal.get_signal():
         frame_buffer.save(result.get('frame'))
     else:
-        frame_buffer.write()
+        pass#frame_buffer.write()
 
     if cv2.waitKey(20) == ord('q'):
       break
