@@ -5,6 +5,7 @@ import imageio
 from pygifsicle import optimize
 import math
 import numpy as np
+import sys
 
 class Detector(object):
     def __init__(self, video):
@@ -98,8 +99,11 @@ class MovementSignal(object):
 
         self.value_window.append(value)
         self.value_window = self.value_window[-self.rolling_count:]
-        rolling_average = sum(self.value_window) / len(self.value_window)
+        rolling_average = self.get_average()
         self.signal_up = rolling_average > 0
+
+    def get_average(self):
+        return sum(self.value_window) / len(self.value_window)
 
     def get_signal(self):
         return self.signal_up
@@ -170,8 +174,10 @@ cap=cv2.VideoCapture(0)
 detector = Detector(cap)
 heartbeat = Heartbeat(60* 60)
 movement_signal = MovementSignal(45)
+movement_signal2 = MovementSignal(45)
 frame_buffer = FrameBuffer(2)
 
+csv = []
 while(True):
 
     result = detector.detect()
@@ -186,6 +192,15 @@ while(True):
 
     heartbeat.check_upload(result.get('frame'))
     movement_signal.update_signal(result.get('countour_count', 0))
+    movement_signal2.update_signal(result.get('countour_total_area', 0))
+
+    csv.append( (str(len(csv)),
+                 str(result.get('countour_count', 0)),
+                 str(movement_signal.get_average()),
+                 str(result.get('countour_total_area', 0)),
+                 str(movement_signal2.get_average()),
+                 ))
+
 
     if movement_signal.get_signal():
         pass#frame_buffer.save(result.get('frame'))
@@ -194,5 +209,8 @@ while(True):
 
     if cv2.waitKey(20) == ord('q'):
       break
+
+print("idx,", 'contour_count,', 'contour_count_rolling,', 'countour_total_area', 'countour_total_area_rolling,')
+print("\n".join( ",".join(l) for l in csv ))
 cap.release()
 cv2.destroyAllWindows()
