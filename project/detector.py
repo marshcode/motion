@@ -142,22 +142,29 @@ class FrameBuffer(object):
         print(f"Writing motion to {output_path}")
         self.last_save = datetime.datetime(1970, 1, 1)
 
-def combine_image(canvas, image, offset_h, offset_w, scale=100):
-    width = int(image.shape[1] * scale / 100)
-    height = int(image.shape[0] * scale / 100)
-    resized = cv2.resize(image, (width, height), interpolation = cv2.INTER_AREA)
 
-    if canvas is None:
-        canvas = np.zeros((height*2, width*2, 3), np.uint8)
+class ImageStitcher(object):
+    def __init__(self, widths, heights, scale):
+        self.widths = widths
+        self.heights = heights
+        self.scale = scale
+        self.canvas = None
 
-    w_start = width * offset_w
-    w_end = width * (offset_w+1)
+    def combine_image(self, image, offset_h, offset_w):
+        width = int(image.shape[1] * self.scale / 100)
+        height = int(image.shape[0] * self.scale / 100)
+        resized = cv2.resize(image, (width, height), interpolation = cv2.INTER_AREA)
 
-    h_start = height * offset_h
-    h_end = height * (offset_h+1)
+        if self.canvas is None:
+            self.canvas = np.zeros((height*self.heights, width*self.widths, 3), np.uint8)
 
-    canvas[h_start:h_end, w_start:w_end, :3] = resized
-    return canvas
+        w_start = width * offset_w
+        w_end = width * (offset_w+1)
+
+        h_start = height * offset_h
+        h_end = height * (offset_h+1)
+
+        self.canvas[h_start:h_end, w_start:w_end, :3] = resized
 
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
@@ -170,18 +177,18 @@ while(True):
     result = detector.detect()
 
     if result.get('frame') is not None:
-        viz = None
-        viz = combine_image(viz, result.get('frame'), offset_w=0, offset_h=0, scale=50)
-        viz = combine_image(viz, cv2.cvtColor(result.get('average_abs'), cv2.COLOR_GRAY2RGB), offset_w=1, offset_h=0, scale=50)
-        viz = combine_image(viz, cv2.cvtColor(result.get('deltaframe'), cv2.COLOR_GRAY2RGB), offset_w=0, offset_h=1, scale=50)
-        viz = combine_image(viz, cv2.cvtColor(result.get('threshold'), cv2.COLOR_GRAY2RGB), offset_w=1, offset_h=1, scale=50)
-        cv2.imshow('all', viz)
+        image_stitcher = ImageStitcher(widths=2, heights=2, scale=50)
+        image_stitcher.combine_image(result.get('frame'), offset_w=0, offset_h=0)
+        image_stitcher.combine_image(cv2.cvtColor(result.get('average_abs'), cv2.COLOR_GRAY2RGB), offset_w=1, offset_h=0)
+        image_stitcher.combine_image(cv2.cvtColor(result.get('deltaframe'), cv2.COLOR_GRAY2RGB), offset_w=0, offset_h=1)
+        image_stitcher.combine_image(cv2.cvtColor(result.get('threshold'), cv2.COLOR_GRAY2RGB), offset_w=1, offset_h=1)
+        cv2.imshow('all', image_stitcher.canvas)
 
     heartbeat.check_upload(result.get('frame'))
     movement_signal.update_signal(result.get('countour_count', 0))
 
     if movement_signal.get_signal():
-        frame_buffer.save(result.get('frame'))
+        pass#frame_buffer.save(result.get('frame'))
     else:
         pass#frame_buffer.write()
 
