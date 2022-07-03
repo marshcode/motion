@@ -170,14 +170,32 @@ class ImageStitcher(object):
 
         self.canvas[h_start:h_end, w_start:w_end, :3] = resized
 
+class DataCollector(object):
+    def __init__(self):
+        self.data = []
+
+    def collect(self, **kw):
+        kw['idx'] = len(self.data)
+        self.data.append(kw)
+
+    def to_csv(self, *headers):
+        csv = []
+        csv.append(','.join(headers))
+        for datum in self.data:
+            line = [str(datum.get(head, 0)) for head in headers]
+            csv.append( ','.join(line))
+
+        return "\n".join(csv)
+
+
 cap=cv2.VideoCapture(0)
 detector = Detector(cap)
 heartbeat = Heartbeat(60* 60)
 movement_signal = MovementSignal(45)
 movement_signal2 = MovementSignal(45)
 frame_buffer = FrameBuffer(2)
+data_collector = DataCollector()
 
-csv = []
 while(True):
 
     result = detector.detect()
@@ -194,23 +212,22 @@ while(True):
     movement_signal.update_signal(result.get('countour_count', 0))
     movement_signal2.update_signal(result.get('countour_total_area', 0))
 
-    csv.append( (str(len(csv)),
-                 str(result.get('countour_count', 0)),
-                 str(movement_signal.get_average()),
-                 str(result.get('countour_total_area', 0)),
-                 str(movement_signal2.get_average()),
-                 ))
+    data_collector.collect(contour_count=result.get('countour_count', 0),
+                           contour_count_rolling=movement_signal.get_average(),
+                           contour_total_area=result.get('countour_total_area', 0),
+                           contour_total_area_rolling = movement_signal2.get_average())
 
 
     if movement_signal.get_signal():
-        pass#frame_buffer.save(result.get('frame'))
+        frame_buffer.save(result.get('frame'))
     else:
-        pass#frame_buffer.write()
+        frame_buffer.write()
 
     if cv2.waitKey(20) == ord('q'):
       break
 
-print("idx,", 'contour_count,', 'contour_count_rolling,', 'countour_total_area', 'countour_total_area_rolling,')
-print("\n".join( ",".join(l) for l in csv ))
+
+print(data_collector.to_csv('contour_count', 'contour_count_rolling', 'contour_total_area', 'contour_total_area_rolling'))
+
 cap.release()
 cv2.destroyAllWindows()
