@@ -84,7 +84,15 @@
         let stream = null;
 
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            stream = await navigator.mediaDevices.getUserMedia({
+                "video": {
+                    mandatory: {
+                        facingMode: "environment",
+                    },
+                },
+                audio: false,
+
+            });
         }
         catch(error) {
             alert(error.message);
@@ -106,7 +114,7 @@
         dataurl_container.style.display = 'block';
 
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", "http://localhost:8080/upload", true);
+        xhr.open("POST", "https://"+ window.location.host + "/upload", true);
         xhr.setRequestHeader('Content-Type', 'text/plain');
         xhr.send(image_data_url);
 
