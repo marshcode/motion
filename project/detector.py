@@ -219,9 +219,9 @@ while(True):
 
 
     if movement_signal.get_signal():
-        frame_buffer.save(result.get('frame'))
+        pass#frame_buffer.save(result.get('frame'))
     else:
-        frame_buffer.write()
+        pass#frame_buffer.write()
 
     if cv2.waitKey(20) == ord('q'):
       break
